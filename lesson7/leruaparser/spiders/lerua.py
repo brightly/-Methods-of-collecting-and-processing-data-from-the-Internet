@@ -1,27 +1,39 @@
 import scrapy
 from scrapy.http import HtmlResponse
 from leruaparser.items import LeruaparserItem
-
+from scrapy.loader import ItemLoader
 class LeruaSpider(scrapy.Spider):
     name = 'lerua'
     allowed_domains = ['leroymerlin.ru']
-    start_urls = ['https://leroymerlin.ru/search/?q=%D0%BB%D0%B0%D0%BC%D0%B8%D0%BD%D0%B0%D1%82&suggest=true&family=laminat-201709']
+
+    def __init__(self, query,**kwargs):
+        super().__init__(**kwargs)
+        self.start_urls = [f'https://leroymerlin.ru/search/?q={query}']
 
     def parse(self, response:HtmlResponse):
         print()
-        links = response.xpath("//a[@class='bex6mjh_plp b1f5t594_plp iypgduq_plp nf842wf_plp']/@href").getall()
-        next_page = response.xpath("//a[@class='bex6mjh_plp o1ojzgcq_plp l7pdtbg_plp r1yi03lb_plp sj1tk7s_plp']/@href").get()
+        ads_links = response.xpath("//a[@data-qa='product-name']")
+        next_page = response.xpath("//a[@data-qa-pagination-item='right']/@href").get()
         if next_page:
             yield response.follow(next_page, callback=self.parse)
-        for link in links:
+        for link in ads_links:
             yield response.follow(link, callback=self.parse_product)
 
     def parse_product(self, response: HtmlResponse):
+        loader = ItemLoader(item=LeruaparserItem(), response=response)
+        loader.add_xpath('name', "//h1/text()")
+        loader.add_xpath('price', "//span[@slot='price']/text()" )
+        loader.add_xpath('price_dr', "//span[@slot='fract']/text()")
+        loader.add_xpath('photos', '//uc-pdp-media-carousel/picture/img/@src')
+        loader.add_xpath('list_hkt','//dt[@class="def-list__term"]/text()')
+        loader.add_xpath('list_data_har', '//dd[@class="def-list__definition"]/text()')
+        loader.add_value('url', response.url)
         print()
-        url = response.url
-        name = response.xpath("//h1/text()").get()
-        price_f = response.xpath("//span[@class='buying-priceold-val-number']/text()").get()
-        price_s = response.xpath("//span[@class='buying-pricenew-val-number']/text()").get()
-        author = response.xpath("//a[@data-event-label='author']/text()").get()
-        rate = response.xpath("//div[@id='rate']/text()").get()
-        yield JobparserItem(url=url, name=name, price_f=price_f, price_s=price_s, author=author, rate=rate)
+        yield loader.load_item()
+        #name = response.xpath("//h1/text()").get()
+        #price = response.xpath("//span[@slot='price']/text()").get()
+        #price_dr = response.xpath("//span[@slot='fract']/text()").get()
+        #photos = response.xpath('//uc-pdp-media-carousel/picture/img/@src').getall()
+        #list_hkt = response.xpath('//dt[@class="def-list__term"]/text()').getall()
+        #list_data_har = response.xpath('//dd[@class="def-list__definition"]/text()').getall()
+        #yield LeruaparserItem(name = name, price=price, price_dr=price_dr, photos=photos, list_hkt= list_hkt, list_data_har=list_data_har)

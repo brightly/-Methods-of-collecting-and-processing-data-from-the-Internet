@@ -8,6 +8,7 @@ if __name__ == '__main__':
     crawler_settings.setmodule(settings)
 
     process = CrawlerProcess(settings=crawler_settings)
-    process.crawl(LeruaSpider)
+    query = input()
+    process.crawl(LeruaSpider, query=query)
 
     process.start()
